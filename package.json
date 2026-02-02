@@ -1,0 +1,29 @@
+{
+  "name": "andre-discord-bot",
+  "version": "1.0.0",
+  "description": "An AI powered Discord bot",
+  "main": "dist/index.js",
+  "type": "module",
+  "repository": "git@github.com:BernardJeremy/andre-discord-bot.git",
+  "author": "Jeremy Bernard <jeremy@bernard.sh>",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.25.1",
+    "dotenv": "^17.2.3",
+    "es-git": "^0.6.0",
+    "execa": "^9.6.1",
+    "langchain": "^1.2.16",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}
