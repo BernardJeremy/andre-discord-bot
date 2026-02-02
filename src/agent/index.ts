@@ -5,6 +5,7 @@ import { config } from '../config/index.js';
 import { createAllTools } from '../tools/index.js';
 import { getHistoryAsMessages, addToHistory } from './memory.js';
 import { getAllLists } from '../tools/lists/store.js';
+import { devLog, devLogSeparator } from '../utils/logger.js';
 import type { ToolContext } from '../types/index.js';
 
 const HISTORY_LIMIT = 10; // Number of previous exchanges to include
@@ -18,14 +19,25 @@ export async function runAgent(
   context: ToolContext,
   input: string
 ): Promise<string> {
+  devLogSeparator();
+  devLog('AGENT', '🚀 New request received');
+  devLog('INPUT', 'User message:', input);
+  devLog('CONTEXT', 'User ID:', context.userId);
+  devLog('CONTEXT', 'Sandbox path:', context.sandboxPath);
+
   const tools = createAllTools(context);
+  devLog('TOOLS', `Loaded ${tools.length} tools:`, tools.map(t => t.name));
+
   const llmWithTools = llm.bindTools(tools);
 
   // Get conversation history
   const history = await getHistoryAsMessages(context.sandboxPath, HISTORY_LIMIT);
+  devLog('HISTORY', `Loaded ${history.length} messages from history`);
 
   // Get lists context for system prompt
   const listsContext = await getAllLists(context.sandboxPath);
+  devLog('LISTS', 'Lists context:', listsContext);
+
   const systemPromptWithContext = buildSystemPrompt(listsContext);
 
   // Build messages array: system + history + new input
@@ -35,10 +47,19 @@ export async function runAgent(
     new HumanMessage(input),
   ];
 
+  devLog('LLM', '📤 Sending to Mistral...', { messageCount: messages.length });
   let response = await llmWithTools.invoke(messages);
+  devLog('LLM', '📥 Response received');
 
   // Handle tool calls in a loop
+  let iteration = 0;
   while (response.tool_calls && response.tool_calls.length > 0) {
+    iteration++;
+    devLog('TOOLS', `🔧 Tool calls detected (iteration ${iteration}):`, response.tool_calls.map(tc => ({
+      name: tc.name,
+      args: tc.args,
+    })));
+
     // Execute each tool call and collect results
     const toolResults: string[] = [];
 
@@ -48,7 +69,9 @@ export async function runAgent(
         throw new Error(`Tool ${toolCall.name} not found`);
       }
 
+      devLog('TOOLS', `⚙️ Executing tool: ${toolCall.name}`, toolCall.args);
       const toolResult = await tool.invoke(toolCall.args);
+      devLog('TOOLS', `✅ Tool result:`, toolResult);
       toolResults.push(`[${toolCall.name}]: ${toolResult}`);
     }
 
@@ -59,7 +82,9 @@ export async function runAgent(
     messages.push(new HumanMessage(`Here are the tool results:\n\n${toolContext}\n\nPlease provide your response based on these results.`));
 
     // Get next response (without tools this time to get final answer)
+    devLog('LLM', '📤 Sending tool results to Mistral...');
     response = await llm.invoke(messages);
+    devLog('LLM', '📥 Response received');
   }
 
   // Ensure output is a string
@@ -75,9 +100,13 @@ export async function runAgent(
     output = String(response.content);
   }
 
+  devLog('OUTPUT', '💬 Final response:', output.substring(0, 200) + (output.length > 200 ? '...' : ''));
+
   // Save to conversation history
   await addToHistory(context.sandboxPath, 'human', input);
   await addToHistory(context.sandboxPath, 'ai', output);
+  devLog('HISTORY', '💾 Saved to conversation history');
+  devLogSeparator();
 
   return output;
 }
