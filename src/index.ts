@@ -1,6 +1,7 @@
 import { Client, Events, GatewayIntentBits } from 'discord.js';
 import { config, validateConfig } from './config/index.js';
 import { handleMessage } from './handlers/message.js';
+import { initScheduler } from './scheduler/runner.js';
 
 validateConfig();
 
@@ -14,6 +15,7 @@ const client = new Client({
 
 client.once(Events.ClientReady, (readyClient) => {
   console.log(`Bot started - Logged in as ${readyClient.user.tag}`);
+  initScheduler(client);
 });
 
 client.on(Events.MessageCreate, (message) => handleMessage(message, client));

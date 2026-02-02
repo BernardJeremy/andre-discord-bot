@@ -16,15 +16,19 @@
   "dependencies": {
     "@langchain/core": "^1.1.18",
     "@langchain/mistralai": "^0.2.0",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "discord.js": "^14.25.1",
     "dotenv": "^17.2.3",
     "es-git": "^0.6.0",
     "execa": "^9.6.1",
     "langchain": "^1.2.16",
+    "node-cron": "^4.2.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^22.15.29",
+    "@types/node-cron": "^3.0.11",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }

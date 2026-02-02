@@ -1,4 +1,6 @@
-const isDev = process.env.NODE_ENV === 'development';
+import { config } from "../config/index.js";
+
+const isDev = config.node.env === 'development';
 
 export function devLog(category: string, message: string, data?: unknown): void {
   if (!isDev) return;

@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
+import { config } from '../config/index.js';
 
 export interface StoredMessage {
   role: 'human' | 'ai';
@@ -12,8 +13,6 @@ export interface StoredMessage {
 export interface ConversationHistory {
   messages: StoredMessage[];
 }
-
-const MAX_MESSAGES = 20; // Keep last N messages
 
 function getHistoryPath(sandboxPath: string): string {
   return path.join(sandboxPath, 'conversation.json');
@@ -45,8 +44,8 @@ export async function saveHistory(
   const filePath = getHistoryPath(sandboxPath);
 
   // Keep only the last N messages
-  if (history.messages.length > MAX_MESSAGES) {
-    history.messages = history.messages.slice(-MAX_MESSAGES);
+  if (history.messages.length > config.mistral.maxMessagesInHistory) {
+    history.messages = history.messages.slice(-config.mistral.maxMessagesInHistory);
   }
 
   await writeFile(filePath, JSON.stringify(history, null, 2), 'utf-8');

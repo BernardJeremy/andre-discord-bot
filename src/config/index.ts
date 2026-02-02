@@ -7,9 +7,18 @@ export const config = {
   mistral: {
     apiKey: process.env.MISTRAL_API_KEY!,
     model: process.env.MISTRAL_MODEL_NAME!,
+    maxMessagesInHistory: process.env.MISTRAL_MAX_MESSAGES_IN_HISTORY
+      ? parseInt(process.env.MISTRAL_MAX_MESSAGES_IN_HISTORY, 10)
+      : 10,
   },
   brave: {
     apiKey: process.env.BRAVE_API_KEY!,
+  },
+  data: {
+    dir: process.env.DATA_DIR || './data',
+  },
+  node: {
+    env: process.env.NODE_ENV || 'production',
   },
 } as const;
 
@@ -20,6 +29,7 @@ export function validateConfig(): void {
   if (!process.env.MISTRAL_API_KEY) missing.push('MISTRAL_API_KEY');
   if (!process.env.MISTRAL_MODEL_NAME) missing.push('MISTRAL_MODEL_NAME');
   if (!process.env.BRAVE_API_KEY) missing.push('BRAVE_API_KEY');
+
   if (missing.length > 0) {
     console.error(`Missing required environment variables: ${missing.join(', ')}`);
     process.exit(1);

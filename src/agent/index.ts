@@ -2,47 +2,58 @@ import { ChatMistralAI } from '@langchain/mistralai';
 import { HumanMessage, SystemMessage, AIMessage, BaseMessage } from '@langchain/core/messages';
 import { buildSystemPrompt } from './prompts.js';
 import { config } from '../config/index.js';
-import { createAllTools } from '../tools/index.js';
+import { createAllTools, CreateToolsOptions } from '../tools/index.js';
 import { getHistoryAsMessages, addToHistory } from './memory.js';
 import { addTokenUsage } from './tokenUsage.js';
 import { getAllLists } from '../tools/lists/store.js';
 import { devLog, devLogSeparator } from '../utils/logger.js';
 import type { ToolContext } from '../types/index.js';
 
-const HISTORY_LIMIT = 10; // Number of previous exchanges to include
-
 const llm = new ChatMistralAI({
   model: config.mistral.model,
   apiKey: config.mistral.apiKey,
 });
 
+export interface RunAgentOptions {
+  excludeScheduler?: boolean;
+  skipHistory?: boolean;
+  customSystemPrompt?: string;
+}
+
 export async function runAgent(
   context: ToolContext,
-  input: string
+  input: string,
+  options: RunAgentOptions = {}
 ): Promise<string> {
   devLogSeparator();
   devLog('AGENT', '🚀 New request received');
   devLog('INPUT', 'User message:', input);
   devLog('CONTEXT', 'User ID:', context.userId);
   devLog('CONTEXT', 'Sandbox path:', context.sandboxPath);
+  if (options.excludeScheduler) devLog('OPTIONS', 'Scheduler tool excluded');
 
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
 
-  const tools = createAllTools(context);
+  const toolsOptions: CreateToolsOptions = {
+    excludeScheduler: options.excludeScheduler,
+  };
+  const tools = createAllTools(context, toolsOptions);
   devLog('TOOLS', `Loaded ${tools.length} tools:`, tools.map(t => t.name));
 
   const llmWithTools = llm.bindTools(tools);
 
-  // Get conversation history
-  const history = await getHistoryAsMessages(context.sandboxPath, HISTORY_LIMIT);
+  // Get conversation history (unless skipped)
+  const history = options.skipHistory 
+    ? [] 
+    : await getHistoryAsMessages(context.sandboxPath, config.mistral.maxMessagesInHistory);
   devLog('HISTORY', `Loaded ${history.length} messages from history`);
 
   // Get lists context for system prompt
   const listsContext = await getAllLists(context.sandboxPath);
   devLog('LISTS', 'Lists context:', listsContext);
 
-  const systemPromptWithContext = buildSystemPrompt(listsContext);
+  const systemPromptWithContext = options.customSystemPrompt || buildSystemPrompt(listsContext);
 
   // Build messages array: system + history + new input
   const messages: BaseMessage[] = [

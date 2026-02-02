@@ -2,15 +2,14 @@ import { Message, Client } from 'discord.js';
 import { runAgent } from '../agent/index.js';
 import type { ToolContext } from '../types/index.js';
 import path from 'node:path';
-
-const DATA_DIR = process.env.DATA_DIR || './data';
+import { config } from '../config/index.js';
 
 function getToolContext(message: Message): ToolContext {
   return {
     userId: message.author.id,
     guildId: message.guild?.id ?? null,
     channelId: message.channel.id,
-    sandboxPath: path.join(DATA_DIR, 'sandboxes', message.author.id),
+    sandboxPath: path.join(config.data.dir, 'sandboxes', message.author.id),
   };
 }
 
