@@ -14,6 +14,8 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@langchain/core": "^1.1.18",
+    "@langchain/mistralai": "^0.2.0",
     "discord.js": "^14.25.1",
     "dotenv": "^17.2.3",
     "es-git": "^0.6.0",
