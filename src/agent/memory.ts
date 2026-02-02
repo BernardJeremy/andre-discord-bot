@@ -81,7 +81,7 @@ export async function getHistoryAsMessages(
     if (typeof content !== 'string') {
       // Handle complex content (arrays with text/reference objects)
       if (Array.isArray(content)) {
-        content = content
+        content = (content as any[])
           .filter((c: any) => c.type === 'text')
           .map((c: any) => c.text)
           .join('');
