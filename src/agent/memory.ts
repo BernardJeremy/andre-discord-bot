@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
@@ -99,6 +99,6 @@ export async function getHistoryAsMessages(
 export async function clearHistory(sandboxPath: string): Promise<void> {
   const filePath = getHistoryPath(sandboxPath);
   if (existsSync(filePath)) {
-    await writeFile(filePath, JSON.stringify({ messages: [] }, null, 2), 'utf-8');
+    await unlink(filePath);
   }
 }

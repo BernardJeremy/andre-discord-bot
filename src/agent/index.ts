@@ -4,6 +4,7 @@ import { buildSystemPrompt } from './prompts.js';
 import { config } from '../config/index.js';
 import { createAllTools } from '../tools/index.js';
 import { getHistoryAsMessages, addToHistory } from './memory.js';
+import { addTokenUsage } from './tokenUsage.js';
 import { getAllLists } from '../tools/lists/store.js';
 import { devLog, devLogSeparator } from '../utils/logger.js';
 import type { ToolContext } from '../types/index.js';
@@ -24,6 +25,9 @@ export async function runAgent(
   devLog('INPUT', 'User message:', input);
   devLog('CONTEXT', 'User ID:', context.userId);
   devLog('CONTEXT', 'Sandbox path:', context.sandboxPath);
+
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
 
   const tools = createAllTools(context);
   devLog('TOOLS', `Loaded ${tools.length} tools:`, tools.map(t => t.name));
@@ -50,6 +54,13 @@ export async function runAgent(
   devLog('LLM', '📤 Sending to Mistral...', { messageCount: messages.length });
   let response = await llmWithTools.invoke(messages);
   devLog('LLM', '📥 Response received');
+
+  // Track token usage from response metadata
+  if (response.usage_metadata) {
+    totalInputTokens += response.usage_metadata.input_tokens || 0;
+    totalOutputTokens += response.usage_metadata.output_tokens || 0;
+    devLog('TOKENS', `Input: ${response.usage_metadata.input_tokens}, Output: ${response.usage_metadata.output_tokens}`);
+  }
 
   // Handle tool calls in a loop
   let iteration = 0;
@@ -85,6 +96,13 @@ export async function runAgent(
     devLog('LLM', '📤 Sending tool results to Mistral...');
     response = await llm.invoke(messages);
     devLog('LLM', '📥 Response received');
+
+    // Track token usage from response metadata
+    if (response.usage_metadata) {
+      totalInputTokens += response.usage_metadata.input_tokens || 0;
+      totalOutputTokens += response.usage_metadata.output_tokens || 0;
+      devLog('TOKENS', `Input: ${response.usage_metadata.input_tokens}, Output: ${response.usage_metadata.output_tokens}`);
+    }
   }
 
   // Ensure output is a string
@@ -106,6 +124,11 @@ export async function runAgent(
   await addToHistory(context.sandboxPath, 'human', input);
   await addToHistory(context.sandboxPath, 'ai', output);
   devLog('HISTORY', '💾 Saved to conversation history');
+
+  // Save token usage
+  await addTokenUsage(context.sandboxPath, totalInputTokens, totalOutputTokens);
+  devLog('TOKENS', `💰 Total for this request - Input: ${totalInputTokens}, Output: ${totalOutputTokens}`);
+
   devLogSeparator();
 
   return output;
