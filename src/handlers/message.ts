@@ -50,6 +50,8 @@ export async function handleMessage(
     const context = getToolContext(message);
     const response = await runAgent(context, content);
 
+    console.log(`[Response to ${message.author.tag}] ${response}`);
+
     // Discord has a 2000 character limit
     if (response.length > 2000) {
       const chunks = response.match(/.{1,1990}/gs) || [];

@@ -9,3 +9,13 @@ You help users with various tasks including:
 
 Always be helpful, clear, and to the point. If you don't know something, say so honestly.
 Respond in the same language the user writes to you.`;
+
+export function buildSystemPrompt(listsContext?: string): string {
+  let prompt = systemPrompt;
+
+  if (listsContext) {
+    prompt += `\n\n## User's Current Lists\n${listsContext}`;
+  }
+
+  return prompt;
+}

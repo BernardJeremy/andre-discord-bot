@@ -8,6 +8,9 @@ export const config = {
     apiKey: process.env.MISTRAL_API_KEY!,
     model: process.env.MISTRAL_MODEL_NAME!,
   },
+  brave: {
+    apiKey: process.env.BRAVE_API_KEY!,
+  },
 } as const;
 
 export function validateConfig(): void {
@@ -16,6 +19,7 @@ export function validateConfig(): void {
   if (!process.env.DISCORD_TOKEN) missing.push('DISCORD_TOKEN');
   if (!process.env.MISTRAL_API_KEY) missing.push('MISTRAL_API_KEY');
   if (!process.env.MISTRAL_MODEL_NAME) missing.push('MISTRAL_MODEL_NAME');
+  if (!process.env.BRAVE_API_KEY) missing.push('BRAVE_API_KEY');
   if (missing.length > 0) {
     console.error(`Missing required environment variables: ${missing.join(', ')}`);
     process.exit(1);
