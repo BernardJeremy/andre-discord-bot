@@ -32,7 +32,4 @@ RUN yarn install --production --frozen-lockfile
 # Copy built application from builder
 COPY --from=builder /app/dist ./dist
 
-# Copy other necessary files
-COPY public ./public
-
 CMD ["yarn", "start"]
