@@ -5,7 +5,6 @@ import { config } from '../config/index.js';
 import { createAllTools, CreateToolsOptions } from '../tools/index.js';
 import { getHistoryAsMessages, addToHistory } from './memory.js';
 import { addTokenUsage } from './tokenUsage.js';
-import { getAllLists } from '../tools/lists/store.js';
 import { devLog, devLogSeparator } from '../utils/logger.js';
 import type { ToolContext } from '../types/index.js';
 
@@ -49,11 +48,7 @@ export async function runAgent(
     : await getHistoryAsMessages(context.sandboxPath, config.mistral.maxMessagesInHistory);
   devLog('HISTORY', `Loaded ${history.length} messages from history`);
 
-  // Get lists context for system prompt
-  const listsContext = await getAllLists(context.sandboxPath);
-  devLog('LISTS', 'Lists context:', listsContext);
-
-  const systemPromptWithContext = options.customSystemPrompt || buildSystemPrompt(listsContext);
+  const systemPromptWithContext = options.customSystemPrompt || buildSystemPrompt();
 
   // Build messages array: system + history + new input
   const messages: BaseMessage[] = [
