@@ -31,7 +31,7 @@ src/
 ## How It Works
 
 1. **Message handling**: The bot listens for messages that mention it.
-2. **Context building**: It loads conversation history and the user’s list context.
+2. **Context building**: It loads conversation history for the current Discord channel.
 3. **LLM call**: The message is sent to Mistral via LangChain, with tools available.
 4. **Tool execution**: If needed, tools are invoked and results are fed back to the model.
 5. **Reply**: The final response is sent back to Discord.
@@ -115,7 +115,7 @@ Token usage is tracked per user in `data/sandboxes/<userId>/token_usage.json`. T
 
 ## Conversation Memory
 
-Conversation history is stored in `data/sandboxes/<userId>/conversation.json`. You can clear it via the conversation tool.
+Conversation history is stored per Discord channel in `data/sandboxes/<userId>/conversations/<channelId>.json`. You can clear it via the conversation tool.
 
 ## Notes
 
