@@ -20,11 +20,11 @@ Use this tool when the user wants to:
       ]).describe('The action to perform'),
     }),
     func: async ({ action }) => {
-      const { sandboxPath } = context;
+      const { sandboxPath, channelId } = context;
 
       switch (action) {
         case 'clear_history':
-          await clearHistory(sandboxPath);
+          await clearHistory(sandboxPath, channelId);
           return 'Conversation history has been cleared. Starting fresh!';
 
         case 'get_token_usage':

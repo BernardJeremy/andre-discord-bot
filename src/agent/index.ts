@@ -45,7 +45,11 @@ export async function runAgent(
   // Get conversation history (unless skipped)
   const history = options.skipHistory 
     ? [] 
-    : await getHistoryAsMessages(context.sandboxPath, config.mistral.maxMessagesInHistory);
+    : await getHistoryAsMessages(
+        context.sandboxPath,
+        config.mistral.maxMessagesInHistory,
+        context.channelId
+      );
   devLog('HISTORY', `Loaded ${history.length} messages from history`);
 
   const systemPromptWithContext = options.customSystemPrompt || buildSystemPrompt();
@@ -127,8 +131,8 @@ export async function runAgent(
   devLog('OUTPUT', '💬 Final response:', output.substring(0, 200) + (output.length > 200 ? '...' : ''));
 
   // Save to conversation history
-  await addToHistory(context.sandboxPath, 'human', input);
-  await addToHistory(context.sandboxPath, 'ai', output);
+  await addToHistory(context.sandboxPath, 'human', input, context.channelId);
+  await addToHistory(context.sandboxPath, 'ai', output, context.channelId);
   devLog('HISTORY', '💾 Saved to conversation history');
 
   // Save token usage

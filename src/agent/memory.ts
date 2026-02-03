@@ -14,7 +14,11 @@ export interface ConversationHistory {
   messages: StoredMessage[];
 }
 
-function getHistoryPath(sandboxPath: string): string {
+function getHistoryPath(sandboxPath: string, channelId?: string | null): string {
+  if (channelId) {
+    return path.join(sandboxPath, 'conversations', `${channelId}.json`);
+  }
+
   return path.join(sandboxPath, 'conversation.json');
 }
 
@@ -24,9 +28,16 @@ async function ensureSandbox(sandboxPath: string): Promise<void> {
   }
 }
 
-export async function loadHistory(sandboxPath: string): Promise<ConversationHistory> {
+export async function loadHistory(
+  sandboxPath: string,
+  channelId?: string | null
+): Promise<ConversationHistory> {
   await ensureSandbox(sandboxPath);
-  const filePath = getHistoryPath(sandboxPath);
+  const filePath = getHistoryPath(sandboxPath, channelId);
+
+  if (channelId) {
+    await mkdir(path.dirname(filePath), { recursive: true });
+  }
 
   if (!existsSync(filePath)) {
     return { messages: [] };
@@ -38,10 +49,15 @@ export async function loadHistory(sandboxPath: string): Promise<ConversationHist
 
 export async function saveHistory(
   sandboxPath: string,
-  history: ConversationHistory
+  history: ConversationHistory,
+  channelId?: string | null
 ): Promise<void> {
   await ensureSandbox(sandboxPath);
-  const filePath = getHistoryPath(sandboxPath);
+  const filePath = getHistoryPath(sandboxPath, channelId);
+
+  if (channelId) {
+    await mkdir(path.dirname(filePath), { recursive: true });
+  }
 
   // Keep only the last N messages
   if (history.messages.length > config.mistral.maxMessagesInHistory) {
@@ -54,9 +70,10 @@ export async function saveHistory(
 export async function addToHistory(
   sandboxPath: string,
   role: 'human' | 'ai',
-  content: string
+  content: string,
+  channelId?: string | null
 ): Promise<void> {
-  const history = await loadHistory(sandboxPath);
+  const history = await loadHistory(sandboxPath, channelId);
 
   history.messages.push({
     role,
@@ -64,14 +81,15 @@ export async function addToHistory(
     timestamp: new Date().toISOString(),
   });
 
-  await saveHistory(sandboxPath, history);
+  await saveHistory(sandboxPath, history, channelId);
 }
 
 export async function getHistoryAsMessages(
   sandboxPath: string,
-  limit?: number
+  limit?: number,
+  channelId?: string | null
 ): Promise<BaseMessage[]> {
-  const history = await loadHistory(sandboxPath);
+  const history = await loadHistory(sandboxPath, channelId);
   const messages = limit ? history.messages.slice(-limit) : history.messages;
 
   return messages.map((msg) => {
@@ -95,8 +113,11 @@ export async function getHistoryAsMessages(
   });
 }
 
-export async function clearHistory(sandboxPath: string): Promise<void> {
-  const filePath = getHistoryPath(sandboxPath);
+export async function clearHistory(
+  sandboxPath: string,
+  channelId?: string | null
+): Promise<void> {
+  const filePath = getHistoryPath(sandboxPath, channelId);
   if (existsSync(filePath)) {
     await unlink(filePath);
   }
