@@ -1,6 +1,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { config } from '../../config/index.js';
+import { devLog } from '../../utils/logger.js';
 
 interface BraveSearchResult {
   title: string;
@@ -80,9 +81,11 @@ export function createSearchTool(): DynamicStructuredTool {
       freshness: z.enum(['day', 'week', 'month', 'year']).optional().describe('Limit results to this recency window based on user intent'),
     }),
     func: async ({ query, numResults, freshness }) => {
+      devLog('TOOL:web_search', 'Invoked', { query, numResults, freshness });
       try {
         const count = Math.min(numResults || 5, 10);
         const results = await searchBrave(query, count, freshness);
+        devLog('TOOL:web_search', `Returned ${results.length} results`);
 
         if (results.length === 0) {
           return `No results found for "${query}".`;

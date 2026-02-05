@@ -1,6 +1,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import type { ToolContext } from '../../types/index.js';
+import { devLog } from '../../utils/logger.js';
 import {
   createScheduledEvent,
   getUserActiveEvents,
@@ -75,6 +76,7 @@ For recurring events, use cronPattern with natural language like:
       eventId: z.string().optional().describe('Event ID for cancellation'),
     }),
     func: async ({ action, scheduleTime, cronPattern, eventAction, mention, description, eventId }) => {
+      devLog('TOOL:manage_schedule', 'Invoked', { action, scheduleTime, cronPattern, eventAction, mention, description, eventId });
       const { userId, guildId, channelId } = context;
 
       switch (action) {

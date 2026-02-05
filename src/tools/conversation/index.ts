@@ -1,6 +1,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import type { ToolContext } from '../../types/index.js';
+import { devLog } from '../../utils/logger.js';
 import { clearHistory } from '../../agent/memory.js';
 import { getTokenUsageFormatted, resetTokenUsage } from '../../agent/tokenUsage.js';
 
@@ -20,6 +21,7 @@ Use this tool when the user wants to:
       ]).describe('The action to perform'),
     }),
     func: async ({ action }) => {
+      devLog('TOOL:manage_conversation', 'Invoked', { action });
       const { sandboxPath, channelId } = context;
 
       switch (action) {

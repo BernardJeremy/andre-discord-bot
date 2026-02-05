@@ -1,6 +1,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import type { ToolContext } from '../../types/index.js';
+import { devLog } from '../../utils/logger.js';
 import {
   createList,
   deleteList,
@@ -34,6 +35,7 @@ Lists are automatically created when adding items if they don't exist.`,
       itemIndex: z.number().optional().describe('1-based index of the item to remove or toggle'),
     }),
     func: async ({ action, listName, itemText, itemIndex }) => {
+      devLog('TOOL:manage_list', 'Invoked', { action, listName, itemText, itemIndex });
       const { sandboxPath } = context;
 
       switch (action) {

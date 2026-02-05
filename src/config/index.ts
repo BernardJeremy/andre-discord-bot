@@ -20,6 +20,9 @@ export const config = {
   node: {
     env: process.env.NODE_ENV || 'production',
   },
+  logging: {
+    logFile: process.env.LOGFILE || null,
+  },
 } as const;
 
 export function validateConfig(): void {
