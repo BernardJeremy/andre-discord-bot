@@ -31,6 +31,52 @@ export async function runAgent(
   devLog('CONTEXT', 'Sandbox path:', context.sandboxPath);
   if (options.excludeScheduler) devLog('OPTIONS', 'Scheduler tool excluded');
 
+  try {
+    return await executeAgent(context, input, options);
+  } catch (error) {
+    devLog('AGENT', '❌ Error:', error);
+    return formatAgentError(error);
+  }
+}
+
+function formatAgentError(error: unknown): string {
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    
+    // API/Network errors
+    if (msg.includes('rate limit') || msg.includes('429')) {
+      return '⚠️ Rate limit reached. Please wait a moment and try again.';
+    }
+    if (msg.includes('timeout') || msg.includes('timed out')) {
+      return '⚠️ Request timed out. The service might be slow, please try again.';
+    }
+    if (msg.includes('network') || msg.includes('fetch') || msg.includes('econnrefused')) {
+      return '⚠️ Network error. Could not reach the AI service.';
+    }
+    if (msg.includes('401') || msg.includes('unauthorized') || msg.includes('api key')) {
+      return '⚠️ Authentication error with the AI service. Please contact the admin.';
+    }
+    if (msg.includes('500') || msg.includes('502') || msg.includes('503')) {
+      return '⚠️ The AI service is temporarily unavailable. Please try again later.';
+    }
+    
+    // Tool errors
+    if (msg.includes('tool') && msg.includes('not found')) {
+      return `⚠️ Internal error: ${error.message}`;
+    }
+    
+    // Generic with message
+    return `⚠️ Something went wrong: ${error.message}`;
+  }
+  
+  return '⚠️ An unexpected error occurred. Please try again.';
+}
+
+async function executeAgent(
+  context: ToolContext,
+  input: string,
+  options: RunAgentOptions = {}
+): Promise<string> {
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
 
@@ -87,13 +133,20 @@ export async function runAgent(
     for (const toolCall of response.tool_calls) {
       const tool = tools.find(t => t.name === toolCall.name);
       if (!tool) {
-        throw new Error(`Tool ${toolCall.name} not found`);
+        toolResults.push(`[${toolCall.name}]: Error - Tool not found`);
+        continue;
       }
 
       devLog('TOOLS', `⚙️ Executing tool: ${toolCall.name}`, toolCall.args);
-      const toolResult = await tool.invoke(toolCall.args);
-      devLog('TOOLS', `✅ Tool result:`, toolResult);
-      toolResults.push(`[${toolCall.name}]: ${toolResult}`);
+      try {
+        const toolResult = await tool.invoke(toolCall.args);
+        devLog('TOOLS', `✅ Tool result:`, toolResult);
+        toolResults.push(`[${toolCall.name}]: ${toolResult}`);
+      } catch (toolError) {
+        const errorMsg = toolError instanceof Error ? toolError.message : 'Unknown error';
+        devLog('TOOLS', `❌ Tool error:`, errorMsg);
+        toolResults.push(`[${toolCall.name}]: Error - ${errorMsg}`);
+      }
     }
 
     // Add the tool results as context in a new human message

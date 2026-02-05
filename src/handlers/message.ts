@@ -109,6 +109,8 @@ export async function handleMessage(
     }
   } catch (error) {
     console.error('Error processing message:', error);
-    await message.reply('Sorry, something went wrong processing your request.');
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+    const shortError = errorMsg.length > 100 ? errorMsg.substring(0, 100) + '...' : errorMsg;
+    await message.reply(`⚠️ Error processing your request: ${shortError}`);
   }
 }
