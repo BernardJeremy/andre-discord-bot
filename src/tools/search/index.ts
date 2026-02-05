@@ -21,9 +21,30 @@ interface BraveWebSearchResponse {
   };
 }
 
-async function searchBrave(query: string, count: number = 5): Promise<BraveSearchResult[]> {
+type BraveFreshnessKey = 'day' | 'week' | 'month' | 'year';
+const BRAVE_API_FRESHNESS_MAP = {
+  day: 'pd',
+  week: 'pw',
+  month: 'pm',
+  year: 'py',
+};
+
+async function searchBrave(
+  query: string,
+  count: number = 5,
+  freshness?: BraveFreshnessKey
+): Promise<BraveSearchResult[]> {
+  const params = new URLSearchParams({
+    q: query,
+    count: String(count),
+  });
+
+  if (freshness) {
+    params.set('freshness', BRAVE_API_FRESHNESS_MAP[freshness]);
+  }
+
   const response = await fetch(
-    `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${count}`,
+    `https://api.search.brave.com/res/v1/web/search?${params.toString()}`,
     {
       headers: {
         'Accept': 'application/json',
@@ -52,15 +73,16 @@ async function searchBrave(query: string, count: number = 5): Promise<BraveSearc
 export function createSearchTool(): DynamicStructuredTool {
   return new DynamicStructuredTool({
     name: 'web_search',
-    description: `Search the web for current information. Use this when you need to find up-to-date information, news, facts, or anything you don't know or aren't sure about.`,
+    description: `Search the web for current information. Use this when you need to find up-to-date information, news, facts, or anything you don't know or aren't sure about. Set freshness based on the user's intent (e.g., "today" → day, "this week" → week, "recent news" → week, "this year" → year).`,
     schema: z.object({
       query: z.string().describe('The search query to look up on the web'),
       numResults: z.number().optional().default(5).describe('Number of results to return (default: 5, max: 10)'),
+      freshness: z.enum(['day', 'week', 'month', 'year']).optional().describe('Limit results to this recency window based on user intent'),
     }),
-    func: async ({ query, numResults }) => {
+    func: async ({ query, numResults, freshness }) => {
       try {
         const count = Math.min(numResults || 5, 10);
-        const results = await searchBrave(query, count);
+        const results = await searchBrave(query, count, freshness);
 
         if (results.length === 0) {
           return `No results found for "${query}".`;
