@@ -100,7 +100,13 @@ All configuration is handled via environment variables.
 | `BRAVE_API_KEY` | Brave Search API key | ✅ | — |
 | `DATA_DIR` | Storage directory | ❌ | `./data` |
 | `MISTRAL_MAX_MESSAGES_IN_HISTORY` | Max stored history messages | ❌ | `10` |
-| `NODE_ENV` | Environment (`development` enables logs) | ❌ | `production` |
+| `NODE_ENV` | Environment (`development` enables console logs) | ❌ | `production` |
+| `LOGFILE` | Append logs to this file in `DATA_DIR` | ❌ | — |
+
+## Logging
+
+- In development mode (`NODE_ENV=development`), logs are printed to the console.
+- If `LOGFILE` is set (e.g., `LOGFILE=andre.log`), all tool invocations and agent activity are appended to `<DATA_DIR>/<LOGFILE>`, regardless of `NODE_ENV`. This is useful for auditing tool usage in production.
 
 ## Scheduling (Paris Time)
 
@@ -120,7 +126,6 @@ Conversation history is stored per Discord channel in `data/sandboxes/<userId>/c
 ## Notes
 
 - The bot only reacts when mentioned in a message.
-- In development mode (`NODE_ENV=development`), detailed logs are enabled.
 - `data/` is excluded from git by default.
 
 ## License
