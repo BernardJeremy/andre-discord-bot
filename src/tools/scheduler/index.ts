@@ -76,7 +76,12 @@ For recurring events, use cronPattern with natural language like:
       eventId: z.string().optional().describe('Event ID for cancellation'),
     }),
     func: async ({ action, scheduleTime, cronPattern, eventAction, mention, description, eventId }) => {
-      devLog('TOOL:manage_schedule', 'Invoked', { action, scheduleTime, cronPattern, eventAction, mention, description, eventId });
+      // Normalize mention: handle empty arrays or empty strings from LLM
+      const normalizedMention = Array.isArray(mention) 
+        ? (mention.length > 0 ? mention[0] : undefined)
+        : (mention && mention.trim() ? mention : undefined);
+      
+      devLog('TOOL:manage_schedule', 'Invoked', { action, scheduleTime, cronPattern, eventAction, mention: normalizedMention, description, eventId });
       const { userId, guildId, channelId } = context;
 
       switch (action) {
@@ -96,7 +101,7 @@ For recurring events, use cronPattern with natural language like:
             type: 'once',
             schedule: isoTime,
             action: eventAction,
-            mention,
+            mention: normalizedMention,
             description: description || `Reminder: ${eventAction.substring(0, 50)}`,
           });
 
@@ -126,7 +131,7 @@ Action: ${eventAction}`;
             type: 'cron',
             schedule: cron,
             action: eventAction,
-            mention,
+            mention: normalizedMention,
             description: description || `Recurring: ${cronPattern}`,
           });
 
