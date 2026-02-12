@@ -1,7 +1,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import type { ToolContext } from '../types/index.js';
 import { createListTool } from './lists/index.js';
-import { createSearchTool } from './search/index.js';
+import { createNewsSearchTool, createWebSearchTool } from './search/index.js';
 import { createConversationTool } from './conversation/index.js';
 import { createSchedulerTool } from './scheduler/index.js';
 
@@ -15,7 +15,8 @@ export function createAllTools(
 ): DynamicStructuredTool[] {
   const tools: DynamicStructuredTool[] = [
     createListTool(context),
-    createSearchTool(),
+    createWebSearchTool(),
+    createNewsSearchTool(),
     createConversationTool(context),
   ];
 
