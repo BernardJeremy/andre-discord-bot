@@ -1,8 +1,6 @@
 import { Message, Client } from 'discord.js';
 import { runAgent } from '../agent/index.js';
 import type { ToolContext } from '../types/index.js';
-import path from 'node:path';
-import { config } from '../config/index.js';
 
 const DISCORD_LIMIT = 2000;
 const DISCORD_SAFE_LIMIT = 1900;
@@ -61,7 +59,6 @@ function getToolContext(message: Message): ToolContext {
     userId: message.author.id,
     guildId: message.guild?.id ?? null,
     channelId: message.channel.id,
-    sandboxPath: path.join(config.data.dir, 'sandboxes', message.author.id),
   };
 }
 

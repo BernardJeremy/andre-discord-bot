@@ -28,7 +28,7 @@ export async function runAgent(
   devLog('AGENT', '🚀 New request received');
   devLog('INPUT', 'User message:', input);
   devLog('CONTEXT', 'User ID:', context.userId);
-  devLog('CONTEXT', 'Sandbox path:', context.sandboxPath);
+  devLog('CONTEXT', 'Sandbox path:', context.userId);
   if (options.excludeScheduler) devLog('OPTIONS', 'Scheduler tool excluded');
 
   try {
@@ -92,7 +92,7 @@ async function executeAgent(
   const history = options.skipHistory 
     ? [] 
     : await getHistoryAsMessages(
-        context.sandboxPath,
+        context.userId,
         config.mistral.maxMessagesInHistory,
         context.channelId
       );
@@ -184,12 +184,12 @@ async function executeAgent(
   devLog('OUTPUT', '💬 Final response:', output.substring(0, 200) + (output.length > 200 ? '...' : ''));
 
   // Save to conversation history
-  await addToHistory(context.sandboxPath, 'human', input, context.channelId);
-  await addToHistory(context.sandboxPath, 'ai', output, context.channelId);
+  await addToHistory(context.userId, 'human', input, context.channelId);
+  await addToHistory(context.userId, 'ai', output, context.channelId);
   devLog('HISTORY', '💾 Saved to conversation history');
 
   // Save token usage
-  await addTokenUsage(context.sandboxPath, totalInputTokens, totalOutputTokens);
+  await addTokenUsage(context.userId, totalInputTokens, totalOutputTokens);
   devLog('TOKENS', `💰 Total for this request - Input: ${totalInputTokens}, Output: ${totalOutputTokens}`);
 
   devLogSeparator();

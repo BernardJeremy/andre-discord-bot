@@ -36,42 +36,42 @@ Lists are automatically created when adding items if they don't exist.`,
     }),
     func: async ({ action, listName, itemText, itemIndex }) => {
       devLog('TOOL:manage_list', 'Invoked', { action, listName, itemText, itemIndex });
-      const { sandboxPath } = context;
+      const { userId } = context;
 
       switch (action) {
         case 'get_all_lists':
-          return getAllLists(sandboxPath);
+          return getAllLists(userId);
 
         case 'get_list':
           if (!listName) return 'Please specify a list name.';
-          return getList(sandboxPath, listName);
+          return getList(userId, listName);
 
         case 'create_list':
           if (!listName) return 'Please specify a list name.';
-          return createList(sandboxPath, listName);
+          return createList(userId, listName);
 
         case 'delete_list':
           if (!listName) return 'Please specify a list name.';
-          return deleteList(sandboxPath, listName);
+          return deleteList(userId, listName);
 
         case 'add_item':
           if (!listName) return 'Please specify a list name.';
           if (!itemText) return 'Please specify the item text.';
-          return addItem(sandboxPath, listName, itemText);
+          return addItem(userId, listName, itemText);
 
         case 'remove_item':
           if (!listName) return 'Please specify a list name.';
           if (itemIndex === undefined) return 'Please specify the item number.';
-          return removeItem(sandboxPath, listName, itemIndex);
+          return removeItem(userId, listName, itemIndex);
 
         case 'toggle_item':
           if (!listName) return 'Please specify a list name.';
           if (itemIndex === undefined) return 'Please specify the item number.';
-          return toggleItem(sandboxPath, listName, itemIndex);
+          return toggleItem(userId, listName, itemIndex);
 
         case 'clear_completed':
           if (!listName) return 'Please specify a list name.';
-          return clearCompleted(sandboxPath, listName);
+          return clearCompleted(userId, listName);
 
         default:
           return 'Unknown action.';

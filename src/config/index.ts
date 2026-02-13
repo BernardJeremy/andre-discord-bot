@@ -17,6 +17,9 @@ export const config = {
   data: {
     dir: process.env.DATA_DIR || './data',
   },
+  database: {
+    uri: process.env.MONGODB_URI!,
+  },
   node: {
     env: process.env.NODE_ENV || 'production',
   },
@@ -32,6 +35,7 @@ export function validateConfig(): void {
   if (!process.env.MISTRAL_API_KEY) missing.push('MISTRAL_API_KEY');
   if (!process.env.MISTRAL_MODEL_NAME) missing.push('MISTRAL_MODEL_NAME');
   if (!process.env.BRAVE_API_KEY) missing.push('BRAVE_API_KEY');
+  if (!process.env.MONGODB_URI) missing.push('MONGODB_URI');
 
   if (missing.length > 0) {
     console.error(`Missing required environment variables: ${missing.join(', ')}`);

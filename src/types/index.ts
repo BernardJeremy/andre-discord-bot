@@ -2,7 +2,6 @@ export interface ToolContext {
   userId: string;
   guildId: string | null;
   channelId: string;
-  sandboxPath: string;
 }
 
 export interface MessageContext {
