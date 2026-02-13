@@ -22,18 +22,18 @@ Use this tool when the user wants to:
     }),
     func: async ({ action }) => {
       devLog('TOOL:manage_conversation', 'Invoked', { action });
-      const { sandboxPath, channelId } = context;
+      const { userId, channelId } = context;
 
       switch (action) {
         case 'clear_history':
-          await clearHistory(sandboxPath, channelId);
+          await clearHistory(userId, channelId);
           return 'Conversation history has been cleared. Starting fresh!';
 
         case 'get_token_usage':
-          return getTokenUsageFormatted(sandboxPath);
+          return getTokenUsageFormatted(userId);
 
         case 'reset_token_usage':
-          await resetTokenUsage(sandboxPath);
+          await resetTokenUsage(userId);
           return 'Token usage statistics have been reset to zero.';
 
         default:

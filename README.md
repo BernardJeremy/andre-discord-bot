@@ -1,6 +1,6 @@
 # André Discord Bot
 
-André is a Discord AI assistant built with Node.js and TypeScript. It uses LangChain with Mistral models to understand natural language, run tools, and respond in Discord. The bot supports per-user sandboxes, list management, web search (Brave API), scheduling (one-time and recurring, Paris time), and conversation memory.
+André is a Discord AI assistant built with Node.js and TypeScript. It uses LangChain with Mistral models to understand natural language, run tools, and respond in Discord. The bot supports per-user data isolation, list management, web search (Brave API), scheduling (one-time and recurring, Paris time), and conversation memory. All data is stored in MongoDB for reliability and performance.
 
 ## Features
 
@@ -11,7 +11,7 @@ André is a Discord AI assistant built with Node.js and TypeScript. It uses Lang
   - Web search (Brave Search API)
   - Conversation management (clear history, token usage stats)
   - Scheduling (cron + one-time reminders, Paris timezone)
-- **Per-user sandbox storage** in the data directory
+- **Per-user data isolation** with MongoDB
 - **Persistent scheduler** (survives restarts)
 - **Conversation memory** with configurable history length
 
@@ -22,8 +22,10 @@ src/
   agent/           # LLM orchestration, prompts, memory, token usage
   handlers/        # Discord message handler
   tools/           # LangChain tools (lists, search, scheduling, etc.)
-  scheduler/       # Scheduling engine and persistence
+  scheduler/       # Scheduling engine
   config/          # Env configuration and validation
+  db/              # MongoDB connection and Mongoose models
+  repositories/    # Data access layer for MongoDB operations
   utils/           # Logging utilities
   types/           # Shared types
 ```
@@ -31,16 +33,17 @@ src/
 ## How It Works
 
 1. **Message handling**: The bot listens for messages that mention it.
-2. **Context building**: It loads conversation history for the current Discord channel.
+2. **Context building**: It loads conversation history for the current Discord channel from MongoDB.
 3. **LLM call**: The message is sent to Mistral via LangChain, with tools available.
 4. **Tool execution**: If needed, tools are invoked and results are fed back to the model.
 5. **Reply**: The final response is sent back to Discord.
-6. **Persistence**: History, lists, scheduler events, and token usage are stored under `data/`.
+6. **Persistence**: History, lists, scheduler events, and token usage are stored in MongoDB.
 
 ## Requirements
 
 - Node.js (LTS recommended)
 - Yarn
+- MongoDB (local or MongoDB Atlas)
 - Discord bot token
 - Mistral API key
 - Brave Search API key
@@ -65,7 +68,8 @@ cp .env.example .env
 - `MISTRAL_API_KEY`
 - `MISTRAL_MODEL_NAME`
 - `BRAVE_API_KEY`
-- (optional) `DATA_DIR`
+- `MONGODB_URI`
+- (optional) `DATA_DIR` (for legacy sandboxes, deprecated)
 - (optional) `MISTRAL_MAX_MESSAGES_IN_HISTORY`
 
 ## Run
@@ -88,6 +92,27 @@ yarn build
 yarn start
 ```
 
+## Migration from JSON to MongoDB
+
+If you're upgrading from a previous version that used JSON files:
+
+1. Ensure MongoDB is running and accessible
+2. Update your `.env` file with `MONGODB_URI`
+3. Run the migration script:
+
+```bash
+yarn build
+node dist/scripts/migrate-to-mongodb.js
+```
+
+The migration script will:
+- Read all existing JSON files from `data/sandboxes/`
+- Import them into MongoDB
+- Verify the migration succeeded
+- Generate a detailed migration report
+
+**Note**: Keep backups of your `data/` directory until you've verified the migration succeeded.
+
 ## Configuration
 
 All configuration is handled via environment variables.
@@ -98,7 +123,8 @@ All configuration is handled via environment variables.
 | `MISTRAL_API_KEY` | Mistral API key | ✅ | — |
 | `MISTRAL_MODEL_NAME` | Mistral model name | ✅ | — |
 | `BRAVE_API_KEY` | Brave Search API key | ✅ | — |
-| `DATA_DIR` | Storage directory | ❌ | `./data` |
+| `MONGODB_URI` | MongoDB connection string | ✅ | `mongodb://localhost:27017/andre-discord-bot` |
+| `DATA_DIR` | Storage directory (deprecated) | ❌ | `./data` |
 | `MISTRAL_MAX_MESSAGES_IN_HISTORY` | Max stored history messages | ❌ | `10` |
 | `NODE_ENV` | Environment (`development` enables console logs) | ❌ | `production` |
 | `LOGFILE` | Append logs to this file in `DATA_DIR` | ❌ | — |
@@ -113,20 +139,21 @@ All configuration is handled via environment variables.
 - All scheduling is **forced to Europe/Paris** timezone.
 - One-time reminders: `in 20 minutes`, `today at 14:00`, `tomorrow at 9:00`, `2026-02-15 at 10:00`
 - Recurring events (cron): `every day at 9:00`, `every monday at 10:00`, `every weekday at 8:30`
-- Events are stored in `data/scheduler.json` and are never deleted (audit-friendly).
+- Events are stored in MongoDB and are never deleted (audit-friendly).
 
 ## Token Usage
 
-Token usage is tracked per user in `data/sandboxes/<userId>/token_usage.json`. The bot exposes a tool to retrieve or reset the stats.
+Token usage is tracked per user in MongoDB. The bot exposes a tool to retrieve or reset the stats.
 
 ## Conversation Memory
 
-Conversation history is stored per Discord channel in `data/sandboxes/<userId>/conversations/<channelId>.json`. You can clear it via the conversation tool.
+Conversation history is stored per Discord channel in MongoDB. You can clear it via the conversation tool.
 
 ## Notes
 
 - The bot only reacts when mentioned in a message.
-- `data/` is excluded from git by default.
+- All user data is stored in MongoDB.
+- Legacy `data/` directory is only used for optional log files.
 
 ## License
 

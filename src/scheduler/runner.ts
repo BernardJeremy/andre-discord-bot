@@ -1,5 +1,4 @@
 import cron from 'node-cron';
-import path from 'node:path';
 import { Client, TextChannel } from 'discord.js';
 import {
   getActiveEvents,
@@ -11,7 +10,6 @@ import { shouldFireNow, isInPast, nowInParis, formatParisTime } from './timePars
 import { runAgent } from '../agent/index.js';
 import { devLog } from '../utils/logger.js';
 import type { ToolContext } from '../types/index.js';
-import { config } from '../config/index.js';
 
 let discordClient: Client | null = null;
 let schedulerTask: cron.ScheduledTask | null = null;
@@ -154,7 +152,6 @@ async function fireEvent(event: ScheduledEvent): Promise<void> {
       userId: event.userId,
       guildId: event.guildId,
       channelId: event.channelId,
-      sandboxPath: path.join(config.data.dir, 'sandboxes', event.userId),
     };
 
     // Build the prompt - clear instructions to execute, not re-schedule
