@@ -111,7 +111,7 @@ export function createNewsSearchTool(): DynamicStructuredTool {
     name: 'news_search',
     description: `Search the web for news information. Use this when you need to find up-to-date news. Set freshness based on the user's intent (e.g., "today" → day, "this week" → week, "recent news" → week, "this year" → year).`,
     schema: z.object({
-      query: z.string().describe('The news query to look up on the web'),
+      query: z.string().describe('The news query to look up on the web. It should be formated with precise keywords, not conversationnal queries. For example, use "Apple earnings" instead of "What is the latest news on Apple?"'),
       numResults: z.number().optional().default(5).describe('Number of results to return (default: 5, max: 10)'),
       freshness: z.enum(['day', 'week', 'month', 'year']).optional().describe('Limit results to this recency window based on user intent'),
     }),
