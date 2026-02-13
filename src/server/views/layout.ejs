@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - André Bot</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand">
+      <a href="/">🤖 André Audit</a>
+    </div>
+    <div class="nav-links">
+      <a href="/" class="nav-link">Dashboard</a>
+      <a href="/logs" class="nav-link">Logs</a>
+    </div>
+    <div class="nav-user">
+      <span class="username"><%= user.username %></span>
+      <a href="/auth/logout" class="nav-link logout">Logout</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <%- body %>
+  </main>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

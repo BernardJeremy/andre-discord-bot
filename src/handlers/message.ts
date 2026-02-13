@@ -1,5 +1,7 @@
 import { Message, Client } from 'discord.js';
 import { runAgent } from '../agent/index.js';
+import { auditRepository } from '../repositories/audit.repository.js';
+import { devLog } from '../utils/logger.js';
 import type { ToolContext } from '../types/index.js';
 
 const DISCORD_LIMIT = 2000;
@@ -87,7 +89,10 @@ export async function handleMessage(
     return;
   }
 
-  console.log(`[${message.author.tag}] ${content}`);
+  devLog('MESSAGE', `[${message.author.tag}] ${content}`);
+
+  // Generate conversation ID for audit trail grouping
+  const conversationId = auditRepository.generateConversationId();
 
   try {
     // Show typing indicator while processing
@@ -96,9 +101,9 @@ export async function handleMessage(
     }
 
     const context = getToolContext(message);
-    const response = await runAgent(context, content);
+    const response = await runAgent(context, content, {}, conversationId);
 
-    console.log(`[Response to ${message.author.tag}] ${response}`);
+    devLog('MESSAGE', `[Response to ${message.author.tag}] ${response.substring(0, 200)}`);
 
     const chunks = chunkResponse(response);
     for (const chunk of chunks) {

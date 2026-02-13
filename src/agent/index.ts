@@ -6,6 +6,7 @@ import { createAllTools, CreateToolsOptions } from '../tools/index.js';
 import { getHistoryAsMessages, addToHistory } from './memory.js';
 import { addTokenUsage } from './tokenUsage.js';
 import { devLog, devLogSeparator } from '../utils/logger.js';
+import { auditRepository } from '../repositories/audit.repository.js';
 import type { ToolContext } from '../types/index.js';
 
 const llm = new ChatMistralAI({
@@ -22,18 +23,45 @@ export interface RunAgentOptions {
 export async function runAgent(
   context: ToolContext,
   input: string,
-  options: RunAgentOptions = {}
+  options: RunAgentOptions = {},
+  conversationId?: string
 ): Promise<string> {
+  const convId = conversationId || auditRepository.generateConversationId();
+
   devLogSeparator();
   devLog('AGENT', '🚀 New request received');
   devLog('INPUT', 'User message:', input);
   devLog('CONTEXT', 'User ID:', context.userId);
-  devLog('CONTEXT', 'Sandbox path:', context.userId);
+  devLog('CONTEXT', 'Conversation ID:', convId);
   if (options.excludeScheduler) devLog('OPTIONS', 'Scheduler tool excluded');
 
+  // Audit: log user message
+  await auditRepository.logUserMessage(
+    convId,
+    context.userId,
+    context.channelId,
+    input
+  );
+
+  const startTime = Date.now();
+
   try {
-    return await executeAgent(context, input, options);
+    const result = await executeAgent(context, input, options, convId);
+
+    return result;
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+
+    // Audit: log agent error
+    await auditRepository.logAgentError(
+      convId,
+      context.userId,
+      context.channelId,
+      errorMsg,
+      errorStack
+    );
+
     devLog('AGENT', '❌ Error:', error);
     return formatAgentError(error);
   }
@@ -75,8 +103,10 @@ function formatAgentError(error: unknown): string {
 async function executeAgent(
   context: ToolContext,
   input: string,
-  options: RunAgentOptions = {}
+  options: RunAgentOptions = {},
+  conversationId: string
 ): Promise<string> {
+  const agentStartTime = Date.now();
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
 
@@ -107,16 +137,68 @@ async function executeAgent(
     new HumanMessage(input),
   ];
 
+  // Serialize messages for audit
+  const serializeMessages = (msgs: BaseMessage[]) =>
+    msgs.map(m => ({
+      role: m._getType(),
+      content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+    }));
+
+  // Audit: log initial LLM request
+  await auditRepository.logLLMRequest(
+    conversationId,
+    context.userId,
+    context.channelId,
+    serializeMessages(messages),
+    config.mistral.model,
+    tools.map(t => t.name),
+    0
+  );
+
   devLog('LLM', '📤 Sending to Mistral...', { messageCount: messages.length });
+  let llmStartTime = Date.now();
   let response = await llmWithTools.invoke(messages);
+  let llmDuration = Date.now() - llmStartTime;
   devLog('LLM', '📥 Response received');
 
   // Track token usage from response metadata
-  if (response.usage_metadata) {
-    totalInputTokens += response.usage_metadata.input_tokens || 0;
-    totalOutputTokens += response.usage_metadata.output_tokens || 0;
-    devLog('TOKENS', `Input: ${response.usage_metadata.input_tokens}, Output: ${response.usage_metadata.output_tokens}`);
-  }
+  const getTokenUsage = () => {
+    if (response.usage_metadata) {
+      const input = response.usage_metadata.input_tokens || 0;
+      const output = response.usage_metadata.output_tokens || 0;
+      totalInputTokens += input;
+      totalOutputTokens += output;
+      devLog('TOKENS', `Input: ${input}, Output: ${output}`);
+      return { input, output };
+    }
+    return null;
+  };
+
+  let tokenUsage = getTokenUsage();
+
+  // Extract response content as string
+  const getContentString = (content: unknown): string => {
+    if (typeof content === 'string') return content;
+    if (Array.isArray(content)) {
+      return content
+        .filter((c: any) => c.type === 'text')
+        .map((c: any) => c.text)
+        .join('');
+    }
+    return String(content);
+  };
+
+  // Audit: log initial LLM response
+  await auditRepository.logLLMResponse(
+    conversationId,
+    context.userId,
+    context.channelId,
+    getContentString(response.content),
+    response.tool_calls?.map(tc => ({ name: tc.name, args: tc.args })) || null,
+    tokenUsage,
+    0,
+    llmDuration
+  );
 
   // Handle tool calls in a loop
   let iteration = 0;
@@ -137,49 +219,95 @@ async function executeAgent(
         continue;
       }
 
+      // Audit: log tool invocation
+      await auditRepository.logToolInvocation(
+        conversationId,
+        context.userId,
+        context.channelId,
+        toolCall.name,
+        toolCall.args,
+        iteration
+      );
+
       devLog('TOOLS', `⚙️ Executing tool: ${toolCall.name}`, toolCall.args);
+      const toolStartTime = Date.now();
       try {
         const toolResult = await tool.invoke(toolCall.args);
+        const toolDuration = Date.now() - toolStartTime;
         devLog('TOOLS', `✅ Tool result:`, toolResult);
         toolResults.push(`[${toolCall.name}]: ${toolResult}`);
+
+        // Audit: log tool result (success)
+        await auditRepository.logToolResult(
+          conversationId,
+          context.userId,
+          context.channelId,
+          toolCall.name,
+          typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult),
+          true,
+          toolDuration,
+          iteration
+        );
       } catch (toolError) {
+        const toolDuration = Date.now() - toolStartTime;
         const errorMsg = toolError instanceof Error ? toolError.message : 'Unknown error';
         devLog('TOOLS', `❌ Tool error:`, errorMsg);
         toolResults.push(`[${toolCall.name}]: Error - ${errorMsg}`);
+
+        // Audit: log tool result (failure)
+        await auditRepository.logToolResult(
+          conversationId,
+          context.userId,
+          context.channelId,
+          toolCall.name,
+          errorMsg,
+          false,
+          toolDuration,
+          iteration
+        );
       }
     }
 
     // Add the tool results as context in a new human message
-    // This avoids ToolMessage which Mistral doesn't handle well
     const toolContext = toolResults.join('\n\n');
     messages.push(new AIMessage('I need to use some tools to help with this.'));
     messages.push(new HumanMessage(`Here are the tool results:\n\n${toolContext}\n\nPlease provide your response based on these results.`));
 
+    // Audit: log follow-up LLM request
+    await auditRepository.logLLMRequest(
+      conversationId,
+      context.userId,
+      context.channelId,
+      serializeMessages(messages),
+      config.mistral.model,
+      tools.map(t => t.name),
+      iteration
+    );
+
     // Get next response (without tools this time to get final answer)
     devLog('LLM', '📤 Sending tool results to Mistral...');
+    llmStartTime = Date.now();
     response = await llm.invoke(messages);
+    llmDuration = Date.now() - llmStartTime;
     devLog('LLM', '📥 Response received');
 
-    // Track token usage from response metadata
-    if (response.usage_metadata) {
-      totalInputTokens += response.usage_metadata.input_tokens || 0;
-      totalOutputTokens += response.usage_metadata.output_tokens || 0;
-      devLog('TOKENS', `Input: ${response.usage_metadata.input_tokens}, Output: ${response.usage_metadata.output_tokens}`);
-    }
+    tokenUsage = getTokenUsage();
+
+    // Audit: log follow-up LLM response
+    await auditRepository.logLLMResponse(
+      conversationId,
+      context.userId,
+      context.channelId,
+      getContentString(response.content),
+      response.tool_calls?.map(tc => ({ name: tc.name, args: tc.args })) || null,
+      tokenUsage,
+      iteration,
+      llmDuration
+    );
   }
 
   // Ensure output is a string
-  let output: string;
-  if (typeof response.content === 'string') {
-    output = response.content;
-  } else if (Array.isArray(response.content)) {
-    output = response.content
-      .filter((c: any) => c.type === 'text')
-      .map((c: any) => c.text)
-      .join('');
-  } else {
-    output = String(response.content);
-  }
+  const output = getContentString(response.content);
 
   devLog('OUTPUT', '💬 Final response:', output.substring(0, 200) + (output.length > 200 ? '...' : ''));
 
@@ -191,6 +319,19 @@ async function executeAgent(
   // Save token usage
   await addTokenUsage(context.userId, totalInputTokens, totalOutputTokens);
   devLog('TOKENS', `💰 Total for this request - Input: ${totalInputTokens}, Output: ${totalOutputTokens}`);
+
+  const totalDuration = Date.now() - agentStartTime;
+
+  // Audit: log final agent response
+  await auditRepository.logAgentResponse(
+    conversationId,
+    context.userId,
+    context.channelId,
+    output,
+    { input: totalInputTokens, output: totalOutputTokens },
+    totalDuration,
+    iteration
+  );
 
   devLogSeparator();
 

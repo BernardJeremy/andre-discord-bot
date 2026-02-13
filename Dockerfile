@@ -32,4 +32,11 @@ RUN yarn install --production --frozen-lockfile
 # Copy built application from builder
 COPY --from=builder /app/dist ./dist
 
+# Copy EJS views and static assets (not processed by tsc)
+COPY --from=builder /app/src/server/views ./dist/server/views
+COPY --from=builder /app/src/server/public ./dist/server/public
+
+# Expose web dashboard port
+EXPOSE 3000
+
 CMD ["yarn", "start"]
