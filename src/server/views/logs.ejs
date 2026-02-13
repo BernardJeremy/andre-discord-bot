@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - André Bot</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand">
+      <a href="/">🤖 André Audit</a>
+    </div>
+    <div class="nav-links">
+      <a href="/" class="nav-link">Dashboard</a>
+      <a href="/logs" class="nav-link active">Logs</a>
+    </div>
+    <div class="nav-user">
+      <span class="username"><%= user.username %></span>
+      <a href="/auth/logout" class="nav-link logout">Logout</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <h1>Audit Logs</h1>
+
+    <div class="card filters-card">
+      <h3>Filters</h3>
+      <form id="filters-form" class="filters-form">
+        <div class="filter-row">
+          <div class="filter-group">
+            <label for="startDate">Start Date</label>
+            <input type="datetime-local" id="startDate" name="startDate" value="<%= filters.startDate || '' %>">
+          </div>
+          <div class="filter-group">
+            <label for="endDate">End Date</label>
+            <input type="datetime-local" id="endDate" name="endDate" value="<%= filters.endDate || '' %>">
+          </div>
+        </div>
+        <div class="filter-row">
+          <div class="filter-group">
+            <label for="userId">User</label>
+            <select id="userId" name="userId">
+              <option value="">All Users</option>
+              <% for (const u of users) { %>
+                <option value="<%= u %>" <%= filters.userId === u ? 'selected' : '' %>><%= u %></option>
+              <% } %>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="eventType">Event Type</label>
+            <select id="eventType" name="eventType">
+              <option value="">All Types</option>
+              <option value="user_message" <%= filters.eventType === 'user_message' ? 'selected' : '' %>>User Message</option>
+              <option value="llm_request" <%= filters.eventType === 'llm_request' ? 'selected' : '' %>>LLM Request</option>
+              <option value="llm_response" <%= filters.eventType === 'llm_response' ? 'selected' : '' %>>LLM Response</option>
+              <option value="tool_invocation" <%= filters.eventType === 'tool_invocation' ? 'selected' : '' %>>Tool Invocation</option>
+              <option value="tool_result" <%= filters.eventType === 'tool_result' ? 'selected' : '' %>>Tool Result</option>
+              <option value="agent_error" <%= filters.eventType === 'agent_error' ? 'selected' : '' %>>Agent Error</option>
+              <option value="agent_response" <%= filters.eventType === 'agent_response' ? 'selected' : '' %>>Agent Response</option>
+              <option value="scheduler_event" <%= filters.eventType === 'scheduler_event' ? 'selected' : '' %>>Scheduler Event</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="toolName">Tool</label>
+            <select id="toolName" name="toolName">
+              <option value="">All Tools</option>
+              <% for (const t of tools) { %>
+                <option value="<%= t %>" <%= filters.toolName === t ? 'selected' : '' %>><%= t %></option>
+              <% } %>
+            </select>
+          </div>
+        </div>
+        <div class="filter-row">
+          <div class="filter-group">
+            <label for="conversationId">Conversation ID</label>
+            <input type="text" id="conversationId" name="conversationId" placeholder="UUID..." value="<%= filters.conversationId || '' %>">
+          </div>
+        </div>
+        <div class="filter-actions">
+          <button type="submit" class="btn btn-primary">Apply Filters</button>
+          <button type="button" class="btn btn-secondary" id="clear-filters">Clear</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="logs-header">
+        <h2>Results</h2>
+        <div id="pagination-info" class="pagination-info"></div>
+      </div>
+      <div id="logs-container" class="logs-container">
+        <p class="loading">Loading logs...</p>
+      </div>
+      <div id="pagination" class="pagination"></div>
+    </div>
+  </main>
+
+  <div id="log-modal" class="modal" style="display: none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Log Detail</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div id="modal-body" class="modal-body">
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+  <script src="/static/js/logs.js"></script>
+</body>
+</html>

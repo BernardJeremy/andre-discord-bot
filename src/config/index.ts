@@ -3,6 +3,9 @@ import 'dotenv/config';
 export const config = {
   discord: {
     token: process.env.DISCORD_TOKEN!,
+    clientId: process.env.DISCORD_CLIENT_ID || '',
+    clientSecret: process.env.DISCORD_CLIENT_SECRET || '',
+    adminUserId: process.env.DISCORD_ADMIN_USER_ID || '',
   },
   mistral: {
     apiKey: process.env.MISTRAL_API_KEY!,
@@ -26,6 +29,11 @@ export const config = {
   logging: {
     logFile: process.env.LOGFILE || null,
   },
+  web: {
+    port: process.env.WEB_PORT ? parseInt(process.env.WEB_PORT, 10) : 3000,
+    sessionSecret: process.env.SESSION_SECRET || 'andre-bot-session-secret-change-me',
+    oauthRedirectUri: process.env.OAUTH_REDIRECT_URI || 'http://localhost:3000/auth/discord/callback',
+  },
 } as const;
 
 export function validateConfig(): void {
@@ -40,5 +48,10 @@ export function validateConfig(): void {
   if (missing.length > 0) {
     console.error(`Missing required environment variables: ${missing.join(', ')}`);
     process.exit(1);
+  }
+
+  // Warn about optional web dashboard config
+  if (!process.env.DISCORD_CLIENT_ID || !process.env.DISCORD_CLIENT_SECRET || !process.env.DISCORD_ADMIN_USER_ID) {
+    console.warn('⚠️  Web dashboard disabled: DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, and DISCORD_ADMIN_USER_ID are required for the audit dashboard.');
   }
 }

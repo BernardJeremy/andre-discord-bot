@@ -9,6 +9,7 @@ import {
 import { shouldFireNow, isInPast, nowInParis, formatParisTime } from './timeParser.js';
 import { runAgent } from '../agent/index.js';
 import { devLog } from '../utils/logger.js';
+import { auditRepository } from '../repositories/audit.repository.js';
 import type { ToolContext } from '../types/index.js';
 
 let discordClient: Client | null = null;
@@ -162,12 +163,30 @@ IMPORTANT: Do NOT create a new schedule or reminder. Simply respond to or execut
 Respond as if the user just asked you this question.`;
 
     devLog('SCHEDULER', `🤖 Running agent for scheduled event: ${event.id}`);
+
+    // Generate conversationId for audit trail
+    const conversationId = auditRepository.generateConversationId();
+
+    // Audit: log scheduler event
+    await auditRepository.logSchedulerEvent(
+      conversationId,
+      event.userId,
+      event.channelId,
+      'scheduler_fire',
+      {
+        eventId: event.id,
+        description: event.description,
+        type: event.type,
+        schedule: event.schedule,
+        action: event.action,
+      }
+    );
     
     // Run through the LangChain agent with scheduler excluded to prevent recursive scheduling
     const response = await runAgent(context, scheduledPrompt, {
       excludeScheduler: true,
       skipHistory: true,  // Don't load conversation history for scheduled events
-    });
+    }, conversationId);
 
     // Build the final message
     let message = response;

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - André Bot</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand">
+      <a href="/">🤖 André Audit</a>
+    </div>
+    <div class="nav-links">
+      <a href="/" class="nav-link active">Dashboard</a>
+      <a href="/logs" class="nav-link">Logs</a>
+    </div>
+    <div class="nav-user">
+      <span class="username"><%= user.username %></span>
+      <a href="/auth/logout" class="nav-link logout">Logout</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <h1>Dashboard</h1>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value"><%= stats.totalConversations %></div>
+        <div class="stat-label">Conversations</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value"><%= stats.totalLogs %></div>
+        <div class="stat-label">Total Events</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value"><%= stats.totalUsers %></div>
+        <div class="stat-label">Users</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value"><%= stats.eventTypeCounts.tool_invocation || 0 %></div>
+        <div class="stat-label">Tool Calls</div>
+      </div>
+    </div>
+
+    <% if (stats.eventTypeCounts && Object.keys(stats.eventTypeCounts).length > 0) { %>
+    <div class="card">
+      <h2>Event Type Breakdown</h2>
+      <div class="event-type-grid">
+        <% for (const [type, count] of Object.entries(stats.eventTypeCounts)) { %>
+          <div class="event-type-item">
+            <span class="badge badge-<%= type %>"><%= type.replace(/_/g, ' ') %></span>
+            <span class="event-count"><%= count %></span>
+          </div>
+        <% } %>
+      </div>
+    </div>
+    <% } %>
+
+    <div class="card">
+      <h2>Recent Conversations</h2>
+      <% if (conversations.length === 0) { %>
+        <p class="empty-state">No conversations yet. Start chatting with the bot!</p>
+      <% } else { %>
+        <div class="conversation-list">
+          <% for (const conv of conversations) { %>
+            <a href="/conversation/<%= conv.conversationId %>" class="conversation-item">
+              <div class="conversation-header">
+                <span class="conversation-user">User: <%= conv.userId %></span>
+                <span class="conversation-time"><%= new Date(conv.startedAt).toLocaleString() %></span>
+              </div>
+              <div class="conversation-preview">
+                <%= conv.firstMessage ? (conv.firstMessage.length > 120 ? conv.firstMessage.substring(0, 120) + '...' : conv.firstMessage) : 'No message' %>
+              </div>
+              <div class="conversation-meta">
+                <span class="badge badge-info"><%= conv.eventCount %> events</span>
+                <span class="conversation-channel">Channel: <%= conv.channelId %></span>
+              </div>
+            </a>
+          <% } %>
+        </div>
+      <% } %>
+    </div>
+  </main>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

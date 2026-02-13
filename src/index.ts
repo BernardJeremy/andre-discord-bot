@@ -3,6 +3,7 @@ import { config, validateConfig } from './config/index.js';
 import { handleMessage } from './handlers/message.js';
 import { initScheduler } from './scheduler/runner.js';
 import { connectToDatabase, disconnectFromDatabase } from './db/connection.js';
+import { createWebServer, startWebServer } from './server/index.js';
 
 validateConfig();
 
@@ -10,6 +11,12 @@ async function main() {
   try {
     // Connect to MongoDB before starting the bot
     await connectToDatabase();
+
+    // Start the web audit dashboard (if configured)
+    const webApp = createWebServer();
+    if (webApp) {
+      startWebServer(webApp);
+    }
 
     const client = new Client({
       intents: [

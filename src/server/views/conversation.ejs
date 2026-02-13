@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - André Bot</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand">
+      <a href="/">🤖 André Audit</a>
+    </div>
+    <div class="nav-links">
+      <a href="/" class="nav-link">Dashboard</a>
+      <a href="/logs" class="nav-link">Logs</a>
+    </div>
+    <div class="nav-user">
+      <span class="username"><%= user.username %></span>
+      <a href="/auth/logout" class="nav-link logout">Logout</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <div class="breadcrumb">
+      <a href="/">Dashboard</a> &rsaquo; <span>Conversation</span>
+    </div>
+
+    <h1>Conversation Trail</h1>
+    <div class="conversation-meta-header">
+      <span class="meta-item"><strong>ID:</strong> <span class="mono"><%= conversationId %></span></span>
+      <span class="meta-item"><strong>User:</strong> <%= trail[0]?.userId || 'Unknown' %></span>
+      <span class="meta-item"><strong>Channel:</strong> <%= trail[0]?.channelId || 'Unknown' %></span>
+      <span class="meta-item"><strong>Events:</strong> <%= trail.length %></span>
+    </div>
+
+    <div class="timeline">
+      <% for (let i = 0; i < trail.length; i++) { 
+        const event = trail[i];
+        const payload = event.payload || {};
+        const metadata = event.metadata || {};
+      %>
+        <div class="timeline-item timeline-<%= event.eventType %>">
+          <div class="timeline-marker"></div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <span class="badge badge-<%= event.eventType %>"><%= event.eventType.replace(/_/g, ' ') %></span>
+              <span class="timeline-time"><%= new Date(event.timestamp).toLocaleString() %></span>
+              <% if (metadata.durationMs) { %>
+                <span class="timeline-duration"><%= metadata.durationMs %>ms</span>
+              <% } %>
+            </div>
+
+            <% if (event.eventType === 'user_message') { %>
+              <div class="timeline-body">
+                <div class="message-content user-message">
+                  <strong>User message:</strong>
+                  <pre class="content-pre"><%= payload.content %></pre>
+                </div>
+              </div>
+
+            <% } else if (event.eventType === 'llm_request') { %>
+              <div class="timeline-body">
+                <div class="llm-info">
+                  <span class="meta-tag">Model: <%= payload.model %></span>
+                  <span class="meta-tag">Iteration: <%= payload.iteration %></span>
+                  <span class="meta-tag">Messages: <%= metadata.messageCount || (payload.messages ? payload.messages.length : '?') %></span>
+                  <% if (payload.availableTools && payload.availableTools.length > 0) { %>
+                    <span class="meta-tag">Tools: <%= payload.availableTools.join(', ') %></span>
+                  <% } %>
+                </div>
+                <details class="collapsible">
+                  <summary>View messages sent to LLM (<%= payload.messages ? payload.messages.length : 0 %> messages)</summary>
+                  <div class="messages-list">
+                    <% if (payload.messages) { 
+                      for (const msg of payload.messages) { %>
+                        <div class="llm-message llm-message-<%= msg.role %>">
+                          <div class="llm-message-role"><%= msg.role %></div>
+                          <pre class="llm-message-content"><%= typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content, null, 2) %></pre>
+                        </div>
+                    <% } } %>
+                  </div>
+                </details>
+              </div>
+
+            <% } else if (event.eventType === 'llm_response') { %>
+              <div class="timeline-body">
+                <div class="llm-info">
+                  <span class="meta-tag">Iteration: <%= payload.iteration %></span>
+                  <% if (metadata.tokenUsage) { %>
+                    <span class="meta-tag">Tokens In: <%= metadata.tokenUsage.input %></span>
+                    <span class="meta-tag">Tokens Out: <%= metadata.tokenUsage.output %></span>
+                  <% } %>
+                  <% if (metadata.durationMs) { %>
+                    <span class="meta-tag">Duration: <%= metadata.durationMs %>ms</span>
+                  <% } %>
+                </div>
+                <% if (payload.hasToolCalls && payload.toolCalls) { %>
+                  <div class="tool-calls-summary">
+                    <strong>Tool calls requested:</strong>
+                    <% for (const tc of payload.toolCalls) { %>
+                      <div class="tool-call-badge">
+                        <span class="badge badge-tool_invocation"><%= tc.name %></span>
+                        <pre class="tool-call-args"><%= JSON.stringify(tc.args, null, 2) %></pre>
+                      </div>
+                    <% } %>
+                  </div>
+                <% } else { %>
+                  <details class="collapsible">
+                    <summary>View LLM response</summary>
+                    <pre class="content-pre"><%= payload.content %></pre>
+                  </details>
+                <% } %>
+              </div>
+
+            <% } else if (event.eventType === 'tool_invocation') { %>
+              <div class="timeline-body">
+                <div class="tool-info">
+                  <span class="meta-tag">Tool: <strong><%= payload.toolName %></strong></span>
+                  <span class="meta-tag">Iteration: <%= payload.iteration %></span>
+                </div>
+                <details class="collapsible">
+                  <summary>View arguments</summary>
+                  <pre class="content-pre"><%= JSON.stringify(payload.args, null, 2) %></pre>
+                </details>
+              </div>
+
+            <% } else if (event.eventType === 'tool_result') { %>
+              <div class="timeline-body">
+                <div class="tool-info">
+                  <span class="meta-tag">Tool: <strong><%= payload.toolName %></strong></span>
+                  <span class="meta-tag <%= payload.success ? 'success' : 'error' %>"><%= payload.success ? '✅ Success' : '❌ Failed' %></span>
+                  <% if (metadata.durationMs) { %>
+                    <span class="meta-tag">Duration: <%= metadata.durationMs %>ms</span>
+                  <% } %>
+                </div>
+                <details class="collapsible">
+                  <summary>View result</summary>
+                  <pre class="content-pre"><%= payload.result %></pre>
+                </details>
+              </div>
+
+            <% } else if (event.eventType === 'agent_error') { %>
+              <div class="timeline-body">
+                <div class="error-content">
+                  <strong>Error:</strong> <%= payload.error %>
+                </div>
+                <% if (payload.stack) { %>
+                  <details class="collapsible">
+                    <summary>View stack trace</summary>
+                    <pre class="content-pre error-stack"><%= payload.stack %></pre>
+                  </details>
+                <% } %>
+              </div>
+
+            <% } else if (event.eventType === 'agent_response') { %>
+              <div class="timeline-body">
+                <div class="llm-info">
+                  <span class="meta-tag">Iterations: <%= payload.iterations %></span>
+                  <% if (metadata.totalTokens) { %>
+                    <span class="meta-tag">Total In: <%= metadata.totalTokens.input %></span>
+                    <span class="meta-tag">Total Out: <%= metadata.totalTokens.output %></span>
+                  <% } %>
+                  <% if (metadata.totalDurationMs) { %>
+                    <span class="meta-tag">Total Duration: <%= metadata.totalDurationMs %>ms</span>
+                  <% } %>
+                </div>
+                <div class="message-content ai-message">
+                  <strong>Final response:</strong>
+                  <pre class="content-pre"><%= payload.response %></pre>
+                </div>
+              </div>
+
+            <% } else if (event.eventType === 'scheduler_event') { %>
+              <div class="timeline-body">
+                <div class="scheduler-info">
+                  <span class="meta-tag">Event: <%= payload.eventName %></span>
+                  <% if (payload.description) { %>
+                    <span class="meta-tag">Description: <%= payload.description %></span>
+                  <% } %>
+                </div>
+                <details class="collapsible">
+                  <summary>View details</summary>
+                  <pre class="content-pre"><%= JSON.stringify(payload, null, 2) %></pre>
+                </details>
+              </div>
+
+            <% } else { %>
+              <div class="timeline-body">
+                <details class="collapsible">
+                  <summary>View payload</summary>
+                  <pre class="content-pre"><%= JSON.stringify(payload, null, 2) %></pre>
+                </details>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  </main>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

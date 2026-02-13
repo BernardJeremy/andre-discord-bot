@@ -71,17 +71,15 @@ For recurring events, use cronPattern with natural language like:
       scheduleTime: z.string().optional().describe('For one-time events: when to fire (e.g., "in 20 minutes", "today at 14:00")'),
       cronPattern: z.string().optional().describe('For recurring events: natural language or cron (e.g., "every day at 9:00", "every monday at 10:00")'),
       eventAction: z.string().optional().describe('The message/action to perform when the event fires'),
-      mention: z.string().optional().describe('Optional: User or role to mention (e.g., "@user" or a user ID like "<@123456789>")'),
+      mentionUser: z.boolean().optional().describe('Whether to mention/ping the user when the event fires (default: true for reminders)'),
       description: z.string().optional().describe('Human-readable description of the event'),
       eventId: z.string().optional().describe('Event ID for cancellation'),
     }),
-    func: async ({ action, scheduleTime, cronPattern, eventAction, mention, description, eventId }) => {
-      // Normalize mention: handle empty arrays or empty strings from LLM
-      const normalizedMention = Array.isArray(mention) 
-        ? (mention.length > 0 ? mention[0] : undefined)
-        : (mention && mention.trim() ? mention : undefined);
+    func: async ({ action, scheduleTime, cronPattern, eventAction, mentionUser, description, eventId }) => {
+      // Build the real Discord mention from the user's ID when requested
+      const resolvedMention = mentionUser !== false ? `<@${context.userId}>` : undefined;
       
-      devLog('TOOL:manage_schedule', 'Invoked', { action, scheduleTime, cronPattern, eventAction, mention: normalizedMention, description, eventId });
+      devLog('TOOL:manage_schedule', 'Invoked', { action, scheduleTime, cronPattern, eventAction, mentionUser, description, eventId });
       const { userId, guildId, channelId } = context;
 
       switch (action) {
@@ -101,7 +99,7 @@ For recurring events, use cronPattern with natural language like:
             type: 'once',
             schedule: isoTime,
             action: eventAction,
-            mention: normalizedMention,
+            mention: resolvedMention,
             description: description || `Reminder: ${eventAction.substring(0, 50)}`,
           });
 
@@ -131,7 +129,7 @@ Action: ${eventAction}`;
             type: 'cron',
             schedule: cron,
             action: eventAction,
-            mention: normalizedMention,
+            mention: resolvedMention,
             description: description || `Recurring: ${cronPattern}`,
           });
 

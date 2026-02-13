@@ -7,10 +7,11 @@ André is a Discord AI assistant built with Node.js and TypeScript. It uses **La
 ### Key Capabilities
 - **Natural language commands** - No prefix required, just mention the bot
 - **Dynamic tool execution** - Lists management, web search, scheduling, conversation memory
-- **Per-user sandboxes** - Isolated JSON-based data storage for security
+- **Per-user data isolation** - MongoDB-based data storage for security
 - **Smart scheduling** - One-time reminders and recurring cron jobs (Paris timezone)
 - **Web search integration** - Brave Search API for GDPR-compliant search (Staan.ai)
-- **Persistent storage** - Conversation memory, token usage tracking, scheduler state
+- **Persistent storage** - All data in MongoDB (conversation memory, token usage, scheduler state)
+- **Audit dashboard** - Web interface to inspect every conversation workflow end-to-end
 
 ## Architecture Overview
 
@@ -21,7 +22,7 @@ The project uses a **tool-based agent architecture** where:
 4. Tools execute and results feed back to the model
 5. Final response is sent to Discord
 
-**Key Design Principle**: Everything is per-user with sandboxed data storage. No external databases required—JSON files in `data/` handle all persistence.
+**Key Design Principle**: Everything is per-user with isolated data storage in MongoDB.
 
 ## Project Structure
 
@@ -32,11 +33,15 @@ src/
   tools/              # LangChain tools (lists, search, scheduling, conversation)
   scheduler/          # Cron engine and persistence layer
   config/             # Environment validation and config
+  db/                 # MongoDB connection and Mongoose models
+  repositories/       # Data access layer for MongoDB operations
+  server/             # Express web server, Discord OAuth, audit dashboard
+    middleware/       # Authentication middleware
+    routes/           # API and page routes
+    views/            # EJS templates
+    public/           # Static CSS and JS assets
   types/              # Shared TypeScript types
-  utils/              # Logging utilities
-data/
-  sandboxes/          # Per-user data (conversation history, lists, token usage)
-  scheduler.json      # Persistent scheduler state (never deleted, audit-friendly)
+  utils/              # Dev console logging
 ```
 
 ## Environment Configuration
@@ -49,12 +54,19 @@ DISCORD_TOKEN=          # Bot token from Discord Developer Portal
 MISTRAL_API_KEY=        # Mistral API key
 MISTRAL_MODEL_NAME=     # Model (e.g., mistral-large-latest)
 BRAVE_API_KEY=          # Brave Search API key (for web search tool)
+MONGODB_URI=            # MongoDB connection string
+
+# Optional - Audit Dashboard
+DISCORD_CLIENT_ID=      # Discord OAuth2 Client ID
+DISCORD_CLIENT_SECRET=  # Discord OAuth2 Client Secret
+DISCORD_ADMIN_USER_ID=  # Discord user ID for dashboard access
+WEB_PORT=3000           # Port for audit web dashboard
+SESSION_SECRET=         # Secret for session cookies
+OAUTH_REDIRECT_URI=     # Discord OAuth callback URL
 
 # Optional
-DATA_DIR=./data                              # Storage directory
 MISTRAL_MAX_MESSAGES_IN_HISTORY=10           # Conversation history length
 NODE_ENV=development                         # development | production
-LOGFILE=andre.log                            # Append tool logs to DATA_DIR/LOGFILE
 ```
 
 **Important**: All scheduling is **forced to Europe/Paris timezone** regardless of server timezone.
@@ -64,8 +76,9 @@ LOGFILE=andre.log                            # Append tool logs to DATA_DIR/LOGF
 ### Agent & Prompts
 - Located in `src/agent/`
 - Prompts tell Mistral what tools are available and how to use them
-- Token usage tracking per user in `token_usage.json`
-- Conversation history stored per Discord channel in `conversations/`
+- Token usage tracking per user in MongoDB
+- Conversation history stored per Discord channel in MongoDB
+- Every agent interaction is audit-logged to MongoDB (user message, LLM requests/responses, tool calls, final response)
 
 ### Tools
 - **Lists**: Create/manage todo lists with item completion tracking
@@ -73,17 +86,10 @@ LOGFILE=andre.log                            # Append tool logs to DATA_DIR/LOGF
 - **Scheduling**: Parse natural language like "every day at 9h" or "in 15 minutes"
 - **Conversation**: Clear history, check token usage
 
-### Storage Structure
-```
-data/
-  sandboxes/
-    {userId}/
-      conversation.json              # Main metadata (created, lastUpdated)
-      token_usage.json               # Token usage stats
-      lists.json                     # User's lists and items
-      conversations/
-        {channelId}.json             # Per-channel message history
-```
+### Storage
+- All data in MongoDB (conversations, lists, scheduler events, token usage, audit logs)
+- Audit logs capture the complete workflow for each conversation
+- Sessions for the web dashboard stored in MongoDB
 
 ### Scheduling
 - Parsed with natural language in `scheduler/timeParser.ts`
@@ -98,7 +104,7 @@ data/
 - **Format**: Prettier + ESLint (run before committing)
 - **Async**: Use async/await consistently; avoid callback hell
 - **Error handling**: Wrap tool calls in try-catch; log failures with context
-- **Logging**: Use `logger.ts` utilities (respects NODE_ENV and LOGFILE)
+- **Logging**: Console logging via `devLog()` in dev; all activity audit-logged to MongoDB
 
 ## Common Commands
 
@@ -152,7 +158,7 @@ Before implementing, consider:
 
 ### Understanding Token Usage
 
-- Tracked in `data/sandboxes/{userId}/token_usage.json`
+- Tracked per user in MongoDB
 - Updated on every agent call
 - Users can check with "show my token usage" or similar
 - Useful for budgeting Mistral API costs
@@ -168,17 +174,17 @@ Before implementing, consider:
 ## Testing Approach
 
 - Manually test tool invocations in Discord
-- Check `data/` for expected files/updates
-- Monitor logs if `LOGFILE` is set
+- Check MongoDB collections for expected data
+- Use the audit dashboard to inspect conversation workflows
+- Monitor console logs in development mode
 - For token usage, verify calculations match Mistral API docs
 
 ## Important Warnings
 
-- **Sandbox isolation**: Each user's data is isolated—don't mix user contexts
-- **No SQL**: Everything is JSON—be careful with race conditions in file writes
+- **User isolation**: Each user's data is isolated—don't mix user contexts
 - **Timezone**: All scheduling assumes Europe/Paris, even if server is elsewhere
-- **Sensitive data**: Never store API keys in `data/`; use `.env`
-- **Logging in production**: Set `LOGFILE` for audit trail of tool usage
+- **Sensitive data**: Never store API keys in MongoDB; use `.env`
+- **Audit logs**: Always audit-logged to MongoDB for traceability
 
 ## Common Debugging Patterns
 
@@ -188,22 +194,25 @@ Before implementing, consider:
    - Check logs for Mistral API errors
 
 2. **Tool execution fails?**
-   - Check error logs (`LOGFILE` if set)
-   - Verify user's sandbox directory exists in `data/sandboxes/{userId}/`
+   - Check audit logs in dashboard for error details
    - Ensure required .env variables for that tool are set
 
 3. **Scheduling not working?**
-   - Check `data/scheduler.json` exists and has correct events
+   - Check scheduler events in MongoDB
    - Verify timezone is Europe/Paris
-   - Check node-cron syntax in logs
+   - Check console logs for scheduler errors
 
 4. **Token usage incorrect?**
-   - Verify `token_usage.json` structure matches schema
+   - Check token usage data in MongoDB
    - Check Mistral API response includes token counts
    - Monitor `MISTRAL_MAX_MESSAGES_IN_HISTORY` setting
 
+5. **Audit dashboard not starting?**
+   - Ensure `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_ADMIN_USER_ID` are set
+   - Ensure `OAUTH_REDIRECT_URI` matches the redirect URL in Discord Developer Portal
+   - Check MongoDB is accessible
+
 ## Git and Commits
 
-- `data/` is excluded from git (user sandboxes shouldn't be committed)
 - Include `.env` in `.gitignore` (never commit credentials)
 - Use clear commit messages referencing which tool/feature changed
